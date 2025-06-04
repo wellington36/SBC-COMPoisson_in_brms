@@ -16,7 +16,7 @@ library(rstan)
 N_simulations <- 5000 # Number of SBC iterations (datasets/fits)
 
 # Stan configuration
-stan_model_file <- "sbc_mu_sigma.stan" # Path to the Stan model file
+stan_model_file <- "sbc_normal.stan" # Path to the Stan model file
 stan_chains <- 2
 stan_iter <- 500 # Iterations per chain
 stan_warmup <- 250 # Warmup iterations per chain
