@@ -1,6 +1,7 @@
 # --- Load Libraries ---
-library(rstan)
 library(brms)
+
+source("rcomp.R")
 
 # --- Configuration ---
 # set.seed(789) # for reproducibility
@@ -11,45 +12,18 @@ if (file.exists("stan_model.rds")) {
   file.remove("stan_model.rds")
 }
 
-# --- To have the posterior in brms ---
-stanvars <- stanvar(scode = "
-  vector[2] lt_sim;
-  lt_sim[1] = Intercept;
-  lt_sim[2] = shape;
-", block = "genquant")
-
 # SBC parameters
-N_simulations <- 10 # Number of SBC iterations (datasets/fits)
+N_simulations <- 1 # Number of SBC iterations (datasets/fits)
 J = 200 # Number of samples to step 2
 stan_chains <- 1
-stan_iter <- 10000 # Iterations per chain
-stan_warmup <- 9000 # Warmup iterations per chain
+stan_iter <- 500 # Iterations per chain
+stan_warmup <- 250 # Warmup iterations per chain
 M_posterior_draws <- stan_chains * (stan_iter - stan_warmup)
 
 sbc_ranks <- matrix(NA, nrow = N_simulations, ncol = 2, dimnames = list(NULL, c("lambda", "nu")))
 
 # --- Auxiliary Functions ---
-rcomp <- function(n, lambda, nu, max_y = 10000, tol = 1e-16) {
-  # Support
-  y <- 0:max_y
-  
-  # Compute log-probabilities for stability
-  log_pmf <- y * log(lambda) - nu * lfactorial(y)
-  log_pmf <- log_pmf - max(log_pmf)  # prevent overflow
-  pmf <- exp(log_pmf)
-  pmf <- pmf / sum(pmf)              # normalize
-  
-  # Check if PMF sums to 1 (otherwise increase max_y)
-  cum_pmf <- cumsum(pmf)
-  if (tail(cum_pmf, 1) < 1 - tol) {
-    warning("PMF may be truncated; increase max_y.")
-  }
-  
-  # Inverse transform sampling
-  u <- runif(n)
-  samples <- sapply(u, function(ui) which(cum_pmf >= ui)[1] - 1)
-  return(samples)
-}
+
 
 # --- SBC for COMPoisson ---
 for (i in 1:N_simulations) {
@@ -57,10 +31,10 @@ for (i in 1:N_simulations) {
   lambda_sim <- rlnorm(1, meanlog = 0, sdlog = 1)
   nu_sim <- rlnorm(1, meanlog = 0, sdlog = 1)
 
-  #Z_sim <- # sla
+  #Z_sim <- # Todo
 
   # --- 2. Draw a dataset y ~ COMPoisson(lambda_sim, nu_sim) ---
-  dataset <- rcomp(J, lambda_sim, nu_sim)
+  dataset <- rcomp(J, lambda_sim, nu_sim, sumTo = 10000)
 
   df <- as.data.frame(table(dataset))
   colnames(df) <- c("x", "y")
@@ -76,33 +50,31 @@ for (i in 1:N_simulations) {
              iter = stan_iter,
              cores = 8,
              warmup = stan_warmup,
+             prior = prior(lognormal(0, 1), lb=0, class="Intercept") +
+               prior(lognormal(0, 1), , lb=0, class="shape"),
              file = "stan_model.rds",     # saves compiled Stan
              file_refit = "always",
              #save_model = "saved_model",    # optional: save the .stan file
              #recompile = FALSE,             # critical: don't recompile unless needed
              backend = "cmdstanr",
-             family = "com_poisson",
-             control = list(adapt_delta = 0.99),
-             stanvars = stanvars
+             family = "com_poisson"
              )
-
+  
   # -- 4. Obtain ranks
   draws <- as_draws_df(fit)
   
-  # Check for lt_sim columns
-  lt_cols <- grep("^lt_sim", names(draws), value = TRUE)
+  # Extract draws for mu and shape
+  lambda_draws <- exp(draws$b_Intercept)
+  nu_draws     <- exp(draws$shape)
   
-  if (length(lt_cols) == 0) {
-    stop("No lt_sim variables found. Did you define them in 'brms' with `bf(..., nl = TRUE)` or via custom Stan code?")
-  }
-  
-  lt_sim_draws <- draws[, lt_cols]
-  
-  lambda_draws <- lt_sim_draws[[1]]
-  nu_draws     <- lt_sim_draws[[2]]
-  
-  sbc_ranks[i, "lambda"] <- sum(lambda_draws < log(lambda_sim))
+  sbc_ranks[i, "lambda"] <- sum(lambda_draws < lambda_sim)
   sbc_ranks[i, "nu"]     <- sum(nu_draws < nu_sim)
+  
+  print(summary(fit))
+  print(sbc_ranks[i, "lambda"])
+  print(sbc_ranks[i, "nu"])
+  print(mean(lambda_draws))
+  print(lambda_sim)
   
   if (i %% 1 == 0 || i == 1) {
     print(paste("Simulation", i, "of", N_simulations, "completed."))
