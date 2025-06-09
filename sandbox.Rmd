@@ -1,0 +1,95 @@
+---
+title: "Sandbox"
+output: html_document
+date: "2025-06-06"
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Libraries
+```{r pressure}
+library(brms)
+source("rcomp.R")
+```
+
+```{r test1}
+lambda_sim <- rnorm(1)
+nu_sim <- rlnorm(1)
+
+print(paste("lambda: ", exp(lambda_sim), "nu: ", nu_sim))
+
+df <- rcomp(500, exp(lambda_sim), nu_sim)
+
+print(paste("mean samples: ", mean(df)))
+
+barplot(table(df), col = "steelblue", main = "Simulated COM-Poisson")
+```
+
+
+```{r test2}
+lambda_sim <- rnorm(1)
+nu_sim <- rlnorm(1)
+
+print(paste("lambda: ", exp(lambda_sim), "nu: ", nu_sim))
+
+df <- rcomp(500, exp(lambda_sim), nu_sim)
+
+print(paste("mean samples: ", mean(df)))
+
+barplot(table(df), col = "steelblue", main = "Simulated COM-Poisson")
+```
+
+
+```{r test3}
+lambda_sim <- rnorm(1)
+nu_sim <- rlnorm(1)
+
+print(paste("lambda: ", exp(lambda_sim), "nu: ", nu_sim))
+
+df <- rcomp(500, exp(lambda_sim), nu_sim)
+
+print(paste("mean samples: ", mean(df)))
+
+barplot(table(df), col = "steelblue", main = "Simulated COM-Poisson")
+```
+
+
+```{r test4}
+lambda_sim <- rnorm(1)
+nu_sim <- rlnorm(1)
+
+print(paste("lambda: ", exp(lambda_sim), "nu: ", nu_sim))
+
+df <- rcomp(500, exp(lambda_sim), nu_sim)
+
+print(paste("mean samples: ", mean(df)))
+
+barplot(table(df), col = "steelblue", main = "Simulated COM-Poisson")
+```
+
+
+```{r test5}
+lambda <- rlnorm(1)
+
+df1 <- rcomp(500, lambda, 1)
+
+barplot(table(df1), col = "steelblue", main = "Simulated COM-Poisson (nu=1)")
+
+df2 <- rpois(500, lambda)
+
+barplot(table(df2), col = "steelblue", main = "Simulated Poisson")
+```
+
+```{r test6}
+lambda <- rlnorm(1)
+
+df1 <- rcomp(500, lambda, 1)
+
+barplot(table(df1), col = "steelblue", main = "Simulated COM-Poisson (nu=1)")
+
+df2 <- rpois(500, lambda)
+
+barplot(table(df2), col = "steelblue", main = "Simulated Poisson")
+```
