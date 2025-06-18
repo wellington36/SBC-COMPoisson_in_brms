@@ -14,7 +14,7 @@ N_simulations <- 1000 # Number of SBC iterations (datasets/fits)
 J = 200 # Number of samples to step 2
 stan_chains <- 1
 stan_iter <- 3000 # Iterations per chain
-stan_warmup <- 2950 # Warmup iterations per chain
+stan_warmup <- 2980 # Warmup iterations per chain
 M_posterior_draws <- stan_chains * (stan_iter - stan_warmup)
 
 sbc_ranks <- matrix(NA, nrow = N_simulations, ncol = 2, dimnames = list(NULL, c("lambda", "nu")))
@@ -35,12 +35,18 @@ for (i in 1:N_simulations) {
   #Z_sim <- # Todo
 
   # --- 2. Draw a dataset y ~ COMPoisson(lambda_sim, nu_sim) ---
-  dataset <- rcomp(J, exp(lambda_sim), nu_sim, max_y = 10000)
+  dataset <- rcomp(J, exp(lambda_sim), nu_sim, sumTo = 100000, eps = 10^-10)
 
   df <- data.frame(y = dataset)
 
 
   # --- 3. MCMC in Stan do obtain samples ---
+  leps <- - 3 * log(2)
+  
+  scode_string <- sprintf("real leps_custom() { return %f; }", leps)
+  
+  custom_stanvars <- stanvar(scode = scode_string, block = "functions")
+  
   fit <- brm(y ~ 1,
              data = df,
              chains = stan_chains,
@@ -49,6 +55,7 @@ for (i in 1:N_simulations) {
              warmup = stan_warmup,
              prior = prior(normal(0, 1), class="Intercept") +
                prior(lognormal(0, 1), class="shape"),
+             stanvars = custom_stanvars,
              file = "stan_model.rds",     # saves compiled Stan
              file_refit = "always",
              backend = "cmdstanr",
