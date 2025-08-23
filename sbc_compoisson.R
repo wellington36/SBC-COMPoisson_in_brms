@@ -1,4 +1,5 @@
 library(parallel)
+library(pbapply)
 library(brms)
 source("rcomp.R")
 
@@ -8,11 +9,11 @@ unlink(files)
 
 # --- SBC parameters ---
 leps <- -8 * log(2)
-N_simulations <- 10   # increase later
-J <- 1000
+N_simulations <- 100   # increase later
+J <- 500
 stan_chains <- 1
-stan_iter <- 10000     # reduce while testing
-stan_warmup <- 8000
+stan_iter <- 1000     # reduce while testing
+stan_warmup <- 800
 M_posterior_draws <- stan_chains * (stan_iter - stan_warmup)
 
 # helper: one SBC run
@@ -87,10 +88,9 @@ sbc_one <- function(i) {
 
 
 # --- run in parallel ---
-results_list <- mclapply(1:N_simulations, 
+results_list <- pblapply(1:N_simulations, 
                          sbc_one, 
-                         mc.cores = detectCores(),
-                         mc.preschedule = FALSE)
+                         cl = 34)
 results <- do.call(rbind, lapply(results_list, as.data.frame))
 
 # --- summary diagnostics ---
